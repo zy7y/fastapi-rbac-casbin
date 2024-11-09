@@ -1,0 +1,10 @@
+casbin-tortoise-adapter==2.0.0
+fastapi==0.115.4
+tortoise-orm==0.21.7
+uvicorn==0.32.0
+bcrypt==3.2.0
+passlib==1.7.4
+python-jose==3.3.0
+
+
+
