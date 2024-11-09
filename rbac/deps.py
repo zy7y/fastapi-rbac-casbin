@@ -1,18 +1,28 @@
 """依赖项、后台权限系统"""
 
+import os.path
+
+import casbin_tortoise_adapter
 from casbin import AsyncEnforcer
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt, JWTError
 from starlette.requests import Request
 
-from models import User
-from security import ALGORITHM, SECRET_KEY
-
-bearer = HTTPBearer()
+from rbac.models import User
+from core.settings import ALGORITHM, SECRET_KEY
 
 
-async def jwt_auth(security: HTTPAuthorizationCredentials = Depends(bearer)):
+async def init_casbin() -> AsyncEnforcer:
+    adapter = casbin_tortoise_adapter.TortoiseAdapter()
+    model_file = os.path.join(os.path.dirname(__file__), "model.conf")
+
+    e = AsyncEnforcer(model_file, adapter)
+    await e.load_policy()
+    return e
+
+
+async def jwt_auth(security: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
     """检查用户token"""
     token = security.credentials
     try:
@@ -24,13 +34,10 @@ async def jwt_auth(security: HTTPAuthorizationCredentials = Depends(bearer)):
         raise HTTPException(401, "用户认证失败")
 
 
-async def get_enforcer(request: Request) -> AsyncEnforcer:
-    """获取casbin enforcer"""
-    return request.app.state.enforcer
-
-
 async def check_permission(request: Request, user: User = Depends(jwt_auth)):
     """检查用户是否有权限访问"""
+    if user.is_superuser:
+        return user
     role = await user.active_role.first() if user.active_role else None
     if role is None:
         raise HTTPException(401, "用户未激活角色")

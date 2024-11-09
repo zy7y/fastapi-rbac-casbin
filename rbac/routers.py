@@ -1,18 +1,29 @@
-from casbin import AsyncEnforcer
 from starlette.requests import Request
 from tortoise.transactions import atomic
-
-import models as model
-import schemas as schema
 from fastapi import APIRouter, Query, Depends
-import security
-import deps
+from core import security
+import rbac.deps as deps
+import rbac.models as model
+import rbac.schemas as schema
+
 
 auth = APIRouter(prefix="", tags=["Auth"])
 
 
+@auth.get(
+    "/routes", summary="获取路由列表", response_model=schema.PageResult[schema.Route]
+)
+def get_routes(request: Request):
+    data = []
+    for route in request.app.routes:
+        for method in route.methods:
+            obj = schema.Route(**route.__dict__, method=method)
+            data.append(obj)
+    return schema.PageResult.ok(data, total=len(data))
+
+
 @auth.post("/login", response_model=schema.Result[schema.Token])
-async def login(payload: schema.LoginReq):
+async def login(payload: schema.Login):
     if obj := await model.User.get_or_none(username=payload.username):
         if security.verify_password(payload.password, obj.password):
             token = security.generate_token(obj.username)
@@ -26,7 +37,9 @@ async def info(obj: model.User = Depends(deps.jwt_auth)):
     return schema.Result.ok(obj)
 
 
-user = APIRouter(prefix="/User", tags=["User"])
+user = APIRouter(
+    prefix="/User", tags=["User"], dependencies=[Depends(deps.check_permission)]
+)
 
 
 @user.post("/assign/role", summary="分配角色", tags=["权限相关"])
@@ -283,21 +296,3 @@ async def assign_route(request: Request, payload: schema.AssignRoute) -> schema.
         await enforcer.remove_filtered_policy(0, str(payload.role_id))
         await enforcer.add_policies(list(policies_to_add))
     return schema.Result.ok()
-
-
-casbin = APIRouter(prefix="/casbin", tags=["casbin"])
-
-
-@casbin.get("", summary="获取当前角色拥有的接口(权限)", tags=["权限相关"])
-async def get_role_routes(request: Request, role_id: int):
-    enforcer: AsyncEnforcer = request.app.state.enforcer
-    policies = enforcer.get_filtered_policy(0, str(role_id))
-    print(policies)
-    return {}
-
-
-@casbin.get("/post")
-async def post(request: Request, sub: str, obj: str, act: str):
-    enforcer: AsyncEnforcer = request.app.state.enforcer
-    await enforcer.add_policy(sub, obj, act)
-    return enforcer.get_policy()
