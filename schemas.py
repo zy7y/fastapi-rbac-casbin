@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 from enum import StrEnum
-from typing import Generic, List, Optional, TypeVar
+from typing import Generic, List, Optional, TypeVar, override  # type: ignore
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic.alias_generators import to_camel
@@ -9,40 +9,68 @@ from pydantic.alias_generators import to_camel
 T = TypeVar("T")
 
 
-class Route(BaseModel):
+class BRQ(BaseModel):
+    """BaseRequestSchema"""
+
+    model_config = {
+        "alias_generator": to_camel,
+        "populate_by_name": True,
+    }
+
+
+class BRS(BaseModel):
+    """BaseResponseSchema"""
+
+    model_config = {
+        "alias_generator": to_camel,
+        "populate_by_name": True,
+        "json_encoders": {datetime: lambda dt: dt.strftime("%Y-%m-%d %H:%M:%S")},
+    }
+
+
+class LoginReq(BRQ):
+    username: str = Field(..., description="用户名")
+    password: str = Field(..., description="密码")
+
+
+class Route(LoginReq):
     """接口"""
+
     path: str = Field(..., description="路由地址")
     name: str = Field(..., description="路由名称")
     method: str = Field(..., description="请求方法")
     summary: str | None = Field(None, description="路由描述")
     tags: List[str] | None = Field(None, description="路由分组")
 
-
     @field_validator("path")
     @classmethod
     def path_validator(cls, v):
-        return re.sub(r'\{.*?\}', ':id', v)
+        return re.sub(r"\{.*?\}", ":id", v)
 
 
-class Token(BaseModel):
+class Token(BRQ):
     """登录成功返回token"""
+
     access_token: str
 
 
-class AssignRole(BaseModel):
+class AssignRole(BRQ):
     """分配角色"""
+
     role_ids: list[int] = Field(..., description="角色ID列表")
     user_id: int = Field(..., description="用户ID")
 
 
-class AssignMenu(BaseModel):
+class AssignMenu(BRQ):
     """分配菜单"""
+
     menu_ids: list[int] = Field(..., description="菜单ID列表")
     role_id: int = Field(..., description="角色ID")
 
 
-class AssignRoute(BaseModel):
+class AssignRoute(BRQ):
     """分配接口"""
+
     routes: list[Route] = Field(..., description="接口列表")
     role_id: int = Field(..., description="角色ID")
 
@@ -53,7 +81,7 @@ class Result(BaseModel, Generic[T]):
     data: Optional[T] = Field(None, description="响应数据")
 
     @classmethod
-    def ok(cls, data: T = None, message: str = "成功"):
+    def ok(cls, data: T = None, message: str = "成功"):  # type: ignore[assignment]
         return cls(data=data, message=message, success=True)
 
     @classmethod
@@ -63,10 +91,11 @@ class Result(BaseModel, Generic[T]):
 
 class PageResult(Result[T]):
     total: int = Field(0, description="数据总数")
-    data: List[T] = Field(default_factory=list, description="响应数据")
+    data: List[T] = Field(default_factory=list, description="响应数据")  # type: ignore[assignment]
 
     @classmethod
-    def ok(cls, data: list[T] = None, message: str = "成功", total: int = 0):
+    @override
+    def ok(cls, data: list[T] = None, message: str = "成功", total: int = 0):  # type: ignore[assignment]
         return cls(data=data, total=total, message=message, success=True)
 
 
@@ -96,10 +125,6 @@ class User(BaseModel):
 class Info(User):
     roles: list["Role"] | None = Field(None)
     active_role: Optional["Role"] = Field(None)
-    model_config = {
-        **User.model_config,
-        "exclude": {"password", },
-    }
 
 
 class UserQueryParams(User):

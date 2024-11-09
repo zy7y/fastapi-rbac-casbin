@@ -1,4 +1,5 @@
 """依赖项、后台权限系统"""
+
 from casbin import AsyncEnforcer
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -30,7 +31,9 @@ async def get_enforcer(request: Request) -> AsyncEnforcer:
 
 async def check_permission(request: Request, user: User = Depends(jwt_auth)):
     """检查用户是否有权限访问"""
-    role = await user.active_role.first()
+    role = await user.active_role.first() if user.active_role else None
+    if role is None:
+        raise HTTPException(401, "用户未激活角色")
     enforcer = request.app.state.enforcer
     if enforcer.enforce(str(role.id), request.url.path, request.method):
         return user

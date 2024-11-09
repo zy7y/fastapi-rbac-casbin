@@ -4,6 +4,7 @@ import inspect
 from pathlib import Path
 
 from fastapi import FastAPI, APIRouter
+from fastapi.routing import APIRoute
 from starlette.routing import BaseRoute
 from tortoise.contrib.fastapi import register_tortoise
 from casbin import AsyncEnforcer
@@ -30,7 +31,7 @@ def get_all_routes(root_dir: str) -> list[BaseRoute]:
     # 动态导入模块并查找路由
     def import_and_find_routes(module_path: Path):
         relative_path = module_path.relative_to(root_dir)
-        module_name = relative_path.with_suffix('').as_posix().replace('/', '.')
+        module_name = relative_path.with_suffix("").as_posix().replace("/", ".")
 
         try:
             module = importlib.import_module(module_name)
@@ -51,7 +52,7 @@ def get_all_routes(root_dir: str) -> list[BaseRoute]:
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     adapter = casbin_tortoise_adapter.TortoiseAdapter()
-    e = AsyncEnforcer('model.conf', adapter)
+    e = AsyncEnforcer("model.conf", adapter)
     await e.load_policy()
     app.state.enforcer = e
 
@@ -60,29 +61,36 @@ async def lifespan(app: FastAPI):
 
     data = list()
     for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
         if route.path in exclude_path:
             continue
         for method in route.methods:
             data.append(Route(**route.__dict__, method=method))
 
     total = len(data)
-    app.add_api_route("/routes", summary="获取路由列表", tags=["权限相关"],
-                      response_model=PageResult[Route],
-                      endpoint=lambda: PageResult.ok(total=total, data=data))
+    app.add_api_route(
+        "/routes",
+        summary="获取路由列表",
+        tags=["权限相关"],
+        response_model=PageResult[Route],
+        endpoint=lambda: PageResult.ok(total=total, data=data),
+    )
 
     yield
 
 
 app = FastAPI(lifespan=lifespan, routes=get_all_routes("."))
 
-register_tortoise(app,
-                  db_url="sqlite://db.sqlite3",
-                  modules={"models": ["models", "casbin_tortoise_adapter"]},
-                  generate_schemas=True,
-                  add_exception_handlers=True
-                  )
+register_tortoise(
+    app,
+    db_url="sqlite://db.sqlite3",
+    modules={"models": ["models", "casbin_tortoise_adapter"]},
+    generate_schemas=True,
+    add_exception_handlers=True,
+)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run("__main__:app", reload=True)

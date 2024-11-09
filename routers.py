@@ -12,7 +12,7 @@ auth = APIRouter(prefix="", tags=["Auth"])
 
 
 @auth.post("/login", response_model=schema.Result[schema.Token])
-async def login(payload: schema.User):
+async def login(payload: schema.LoginReq):
     if obj := await model.User.get_or_none(username=payload.username):
         if security.verify_password(payload.password, obj.password):
             token = security.generate_token(obj.username)
@@ -22,7 +22,7 @@ async def login(payload: schema.User):
 
 @auth.get("/info", response_model=schema.Result[schema.Info])
 async def info(obj: model.User = Depends(deps.jwt_auth)):
-    obj = await model.User.get(id=obj.id).prefetch_related('roles', 'active_role')
+    obj = await model.User.get(id=obj.id).prefetch_related("roles", "active_role")
     return schema.Result.ok(obj)
 
 
@@ -56,7 +56,7 @@ async def query_user_by_id(id: int) -> schema.Result[schema.User]:
 
 @user.get("", summary="分页条件查询")
 async def query_user_all_by_limit(
-        query: schema.UserQueryParams = Query(),
+    query: schema.UserQueryParams = Query(),
 ) -> schema.PageResult[schema.User]:
     kwargs = query.model_dump(exclude_none=True)
     if kwargs.get("order_by"):
@@ -82,13 +82,20 @@ async def query_user_all_by_limit(
 @user.post("", summary="新增数据")
 async def create_user(instance: schema.User) -> schema.Result[schema.User]:
     instance.password = security.get_password_hash("123456")
-    obj = await model.User.create(**instance.model_dump(exclude_unset=True, exclude={"id", }))
+    obj = await model.User.create(
+        **instance.model_dump(
+            exclude_unset=True,
+            exclude={
+                "id",
+            },
+        )
+    )
     return schema.Result.ok(obj)
 
 
 @user.patch("/{id}", summary="更新数据")
 async def update_user_by_id(
-        id: int, instance: schema.User
+    id: int, instance: schema.User
 ) -> schema.Result[schema.User]:
     obj = await model.User.get_or_none(id=id)
     if obj:
@@ -108,9 +115,9 @@ async def delete_user_by_id(id: int) -> schema.Result[schema.User]:
     return schema.Result.error("删除失败")
 
 
-from fastapi import APIRouter, Query
-
-role = APIRouter(prefix="/Role", tags=["Role"], dependencies=[Depends(deps.check_permission)])
+role = APIRouter(
+    prefix="/Role", tags=["Role"], dependencies=[Depends(deps.check_permission)]
+)
 
 
 @role.post("/assign/menu", summary="分配菜单(权限)", tags=["权限相关"])
@@ -138,7 +145,7 @@ async def query_role_by_id(id: int) -> schema.Result[schema.Role]:
 
 @role.get("", summary="分页条件查询")
 async def query_role_all_by_limit(
-        query: schema.RoleQueryParams = Query(),
+    query: schema.RoleQueryParams = Query(),
 ) -> schema.PageResult[schema.Role]:
     kwargs = query.model_dump(exclude_none=True)
     if kwargs.get("order_by"):
@@ -169,7 +176,7 @@ async def create_role(instance: schema.Role) -> schema.Result[schema.Role]:
 
 @role.patch("/{id}", summary="更新数据")
 async def update_role_by_id(
-        id: int, instance: schema.Role
+    id: int, instance: schema.Role
 ) -> schema.Result[schema.Role]:
     obj = await model.Role.get_or_none(id=id)
     if obj:
@@ -189,8 +196,6 @@ async def delete_role_by_id(id: int) -> schema.Result[schema.Role]:
     return schema.Result.error("删除失败")
 
 
-from fastapi import APIRouter, Query
-
 menu = APIRouter(prefix="/Menu", tags=["Menu"])
 
 
@@ -202,7 +207,7 @@ async def query_menu_by_id(id: int) -> schema.Result[schema.Menu]:
 
 @menu.get("", summary="分页条件查询")
 async def query_menu_all_by_limit(
-        query: schema.MenuQueryParams = Query(),
+    query: schema.MenuQueryParams = Query(),
 ) -> schema.PageResult[schema.Menu]:
     kwargs = query.model_dump(exclude_none=True)
     if kwargs.get("order_by"):
@@ -233,7 +238,7 @@ async def create_menu(instance: schema.Menu) -> schema.Result[schema.Menu]:
 
 @menu.patch("/{id}", summary="更新数据")
 async def update_menu_by_id(
-        id: int, instance: schema.Menu
+    id: int, instance: schema.Menu
 ) -> schema.Result[schema.Menu]:
     obj = await model.Menu.get_or_none(id=id)
     if obj:
@@ -279,7 +284,10 @@ async def assign_route(request: Request, payload: schema.AssignRoute) -> schema.
         await enforcer.add_policies(list(policies_to_add))
     return schema.Result.ok()
 
+
 casbin = APIRouter(prefix="/casbin", tags=["casbin"])
+
+
 @casbin.get("", summary="获取当前角色拥有的接口(权限)", tags=["权限相关"])
 async def get_role_routes(request: Request, role_id: int):
     enforcer: AsyncEnforcer = request.app.state.enforcer
@@ -289,7 +297,7 @@ async def get_role_routes(request: Request, role_id: int):
 
 
 @casbin.get("/post")
-async def post(request: Request,sub:str, obj:str, act:str):
+async def post(request: Request, sub: str, obj: str, act: str):
     enforcer: AsyncEnforcer = request.app.state.enforcer
-    await enforcer.add_policy(sub,obj,act)
+    await enforcer.add_policy(sub, obj, act)
     return enforcer.get_policy()
