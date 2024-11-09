@@ -9,7 +9,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt, JWTError
 from starlette.requests import Request
 
-from rbac.models import User
+from apps.rbac.models import User
 from core.settings import ALGORITHM, SECRET_KEY
 
 

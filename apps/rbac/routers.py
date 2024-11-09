@@ -2,9 +2,9 @@ from starlette.requests import Request
 from tortoise.transactions import atomic
 from fastapi import APIRouter, Query, Depends
 from core import security
-import rbac.deps as deps
-import rbac.models as model
-import rbac.schemas as schema
+import apps.rbac.deps as deps
+import apps.rbac.models as model
+import apps.rbac.schemas as schema
 
 
 auth = APIRouter(prefix="", tags=["Auth"])
