@@ -27,7 +27,7 @@ async def login(payload: schema.Login):
     if obj := await model.User.get_or_none(username=payload.username):
         if security.verify_password(payload.password, obj.password):
             token = security.generate_token(obj.username)
-            return schema.Result.ok(schema.Token(access_token=token))
+            return schema.Result.ok(schema.Token(token=token))
     return schema.Result.error("用户名或密码错误")
 
 

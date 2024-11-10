@@ -8,6 +8,7 @@ import importlib
 import inspect
 from pathlib import Path
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
 from tortoise.models import Model
 
@@ -66,18 +67,13 @@ def find_models(root_dir: str = "."):
 
         try:
             module = importlib.import_module(module_name)
-            models = [
-                module_name
-                for _, obj in inspect.getmembers(module)
-                if issubclass(obj, Model)
-                and (
-                    not hasattr(obj, "Meta") or not getattr(obj.Meta, "abstract", False)
-                )
-            ]
-            models_str.update(models)
+            for _, obj in inspect.getmembers(module):
+                if issubclass(obj, Model):
+                    if obj._meta.abstract:
+                        continue
+                    models_str.add(module_name)
         except Exception as e:
             print(f"无法导入模块 {module_name}: {e}")
-
     return models_str
 
 
@@ -93,4 +89,12 @@ async def lifespan(app: FastAPI):
     ):
         e = await rbac.init_casbin()
         app.state.enforcer = e
+        # 跨域
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
         yield

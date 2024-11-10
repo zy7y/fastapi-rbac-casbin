@@ -38,7 +38,7 @@ class Route(RequestSchema):
 class Token(ResponseSchema):
     """登录成功返回token"""
 
-    access_token: str
+    token: str
 
 
 class AssignRole(RequestSchema):
