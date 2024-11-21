@@ -18,6 +18,8 @@ class AbstractUser(AbstractBaseModel):
     username = fields.CharField(max_length=32, unique=True, description="用户名")
     password = fields.CharField(max_length=128, description="密码")
     is_superuser = fields.BooleanField(default=False, description="是否是超级管理员")
-
-    class Meta:
-        abstract = True
+    avatar = fields.CharField(max_length=128, null=True, description="头像")
+    sex = fields.CharField(max_length=4, null=True, description="性别")
+    nickname = fields.CharField(max_length=32, null=True, description="昵称")
+    mobile = fields.CharField(max_length=11, null=True, description="手机号")
+    email = fields.CharField(max_length=32, null=True, description="邮箱")

@@ -77,6 +77,7 @@ class User(BaseModel):
     id: Optional[int] = Field(None)
     username: Optional[str] = Field(None)
     password: Optional[str] = Field(None)
+    is_superuser: Optional[bool] = Field(None)
 
     model_config = {
         "alias_generator": to_camel,
@@ -85,9 +86,27 @@ class User(BaseModel):
     }
 
 
+class MenuTree(BaseModel):
+    id: Optional[int] = Field(None)
+    name: Optional[str] = Field(None)
+    children: list["MenuTree"] | None = Field(None)
+    path: Optional[str] = Field(None)
+    component: Optional[str] = Field(None)
+    meta: Optional[dict] = Field(None)
+    redirect: Optional[str] = Field(None)
+    permission: Optional[str] = Field(None)
+    type: Optional[int] = Field(None)
+
+
+""" 当前登录用户 信息获取"""
+
+
 class Info(User):
-    roles: list["Role"] | None = Field(None)
-    active_role: Optional["Role"] = Field(None)
+    password: str = Field(..., exclude=True)
+    roles: list["Role"] | None = Field(None, description="角色列表")
+    active_role: Optional["Role"] = Field(None, description="当前激活角色")
+    menus: list[MenuTree] | None = Field(None, description="菜单树")
+    permissions: list[str] | None = Field(None, description="按钮权限列表")
 
 
 class UserQueryParams(User):
@@ -146,6 +165,12 @@ class MenuFieldEnum(StrEnum):
     PERMISSION_DESC = "-permission"
     TYPE_ASC = "type"
     TYPE_DESC = "-type"
+
+
+class MenuMeta(BaseModel):
+    title: str
+    icon: Optional[str] = Field(None)
+    is_hide: Optional[bool] = Field(False)
 
 
 class Menu(BaseModel):

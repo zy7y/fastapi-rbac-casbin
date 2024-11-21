@@ -5,7 +5,7 @@ from core import security
 import apps.rbac.deps as deps
 import apps.rbac.models as model
 import apps.rbac.schemas as schema
-
+from utils import helper
 
 auth = APIRouter(prefix="", tags=["Auth"])
 
@@ -22,7 +22,7 @@ def get_routes(request: Request):
     return schema.PageResult.ok(data, total=len(data))
 
 
-@auth.post("/login", response_model=schema.Result[schema.Token])
+@auth.post("/login", response_model=schema.Result[schema.Token], summary="登录")
 async def login(payload: schema.Login):
     if obj := await model.User.get_or_none(username=payload.username):
         if security.verify_password(payload.password, obj.password):
@@ -31,9 +31,24 @@ async def login(payload: schema.Login):
     return schema.Result.error("用户名或密码错误")
 
 
-@auth.get("/info", response_model=schema.Result[schema.Info])
+@auth.get("/me", response_model=schema.Result[schema.Info], summary="当前用户信息")
 async def info(obj: model.User = Depends(deps.jwt_auth)):
     obj = await model.User.get(id=obj.id).prefetch_related("roles", "active_role")
+    if obj.is_superuser:
+        # 返回所有菜单
+        menu_list = await model.Menu.all().values()
+    else:
+        # 根据角色查询菜单
+        role_obj = await obj.active_role.first()
+        menu_list = await role_obj.menus.all().values()
+    data = helper.list2tree(menu_list)
+    setattr(obj, "menus", data)
+    permissions = [
+        item["permission"]
+        for item in menu_list
+        if item["type"] == 3 and item["permission"]
+    ]
+    setattr(obj, "permissions", permissions)
     return schema.Result.ok(obj)
 
 
@@ -221,7 +236,7 @@ async def query_menu_by_id(id: int) -> schema.Result[schema.Menu]:
 @menu.get("", summary="分页条件查询")
 async def query_menu_all_by_limit(
     query: schema.MenuQueryParams = Query(),
-) -> schema.PageResult[schema.Menu]:
+) -> schema.PageResult:
     kwargs = query.model_dump(exclude_none=True)
     if kwargs.get("order_by"):
         order_by = kwargs.pop("order_by")
@@ -239,6 +254,7 @@ async def query_menu_all_by_limit(
         .limit(page_size)
         .all()
         .order_by(*order_by)
+        .values()
     )
     return schema.PageResult.ok(data=data, total=total)
 
