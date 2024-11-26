@@ -1,4 +1,6 @@
 import contextlib
+
+from starlette.middleware import Middleware
 from tortoise.contrib.fastapi import RegisterTortoise
 
 from apps import rbac
@@ -89,12 +91,15 @@ async def lifespan(app: FastAPI):
     ):
         e = await rbac.init_casbin()
         app.state.enforcer = e
-        # 跨域
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
         yield
+
+
+middleware = [
+    Middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+]
