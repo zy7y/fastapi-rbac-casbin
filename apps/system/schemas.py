@@ -77,6 +77,10 @@ class User(BaseModel):
     id: Optional[int] = Field(None)
     username: Optional[str] = Field(None)
     password: Optional[str] = Field(None)
+    last_login: Optional[datetime] = Field(None)
+    is_staff: Optional[bool] = Field(None)
+    is_superuser: Optional[bool] = Field(None)
+    avatar: Optional[str] = Field(None)
 
     model_config = {
         "alias_generator": to_camel,
@@ -112,6 +116,7 @@ class RoleFieldEnum(StrEnum):
 class Role(BaseModel):
     id: Optional[int] = Field(None)
     name: Optional[str] = Field(None)
+    remark: Optional[str] = Field(None)
     model_config = {
         "alias_generator": to_camel,
         "populate_by_name": True,

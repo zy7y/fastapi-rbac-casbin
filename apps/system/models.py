@@ -14,6 +14,7 @@ class User(AbstractUser):
 
 class Role(AbstractBaseModel):
     name = fields.CharField(max_length=32, description="角色名")
+    remark = fields.CharField(max_length=128, null=True, description="备注")
     users: fields.ManyToManyRelation[User]
     menus: fields.ManyToManyRelation["Menu"] = fields.ManyToManyField(
         "models.Menu", related_name="roles", null=True, description="拥有菜单"

@@ -8,7 +8,8 @@ async def init_db():
         # 1. 创建用户
         await User.create(username="admin",
                           password=get_password_hash("123456"),
-                          is_superuser=True)
+                          is_superuser=True,
+                          is_staff=True)
 
         # 2. 创建菜单
         root = await Menu.create(
@@ -26,7 +27,7 @@ async def init_db():
             name="用户管理",
             path="/system/user",
             parent=root,
-            component="/views/system/user/index.vue",
+            component="/src/views/system/user/index.vue",
             permission="",
             type=MenuType.MENU,
             meta=schemas.MenuMeta(
@@ -37,7 +38,7 @@ async def init_db():
             name="角色管理",
             path="/system/role",
             parent=root,
-            component="/views/system/role/index.vue",
+            component="/src/views/system/role/index.vue",
             permission="",
             type=MenuType.MENU,
             meta=schemas.MenuMeta(
@@ -49,7 +50,7 @@ async def init_db():
             name="菜单管理",
             path="/system/menu",
             parent=root,
-            component="/views/system/menu/index.vue",
+            component="/src/views/system/menu/index.vue",
             permission="",
             type=MenuType.MENU,
             meta=schemas.MenuMeta(
@@ -62,7 +63,7 @@ async def init_db():
             path="",
             parent=user,
             component="",
-            permission="user:create",
+            permission="user:add",
             type=MenuType.BUTTON,
             meta=schemas.MenuMeta(
                 title="用户新增",
@@ -84,7 +85,7 @@ async def init_db():
             path="",
             parent=user,
             component="",
-            permission="user:update",
+            permission="user:edit",
             type=MenuType.BUTTON,
             meta=schemas.MenuMeta(
                 title="用户修改",
@@ -106,7 +107,7 @@ async def init_db():
             path="",
             parent=role,
             component="",
-            permission="role:create",
+            permission="role:add",
             type=MenuType.BUTTON,
             meta=schemas.MenuMeta(
                 title="角色新增",
@@ -128,7 +129,7 @@ async def init_db():
             path="",
             parent=role,
             component="",
-            permission="role:update",
+            permission="role:edit",
             type=MenuType.BUTTON,
             meta=schemas.MenuMeta(
                 title="角色修改",
@@ -150,7 +151,7 @@ async def init_db():
             path="",
             parent=menu,
             component="",
-            permission="menu:create",
+            permission="menu:add",
             type=MenuType.BUTTON,
             meta=schemas.MenuMeta(
                 title="菜单新增",
@@ -172,7 +173,7 @@ async def init_db():
             path="",
             parent=menu,
             component="",
-            permission="menu:update",
+            permission="menu:edit",
             type=MenuType.BUTTON,
             meta=schemas.MenuMeta(
                 title="菜单修改",
@@ -183,7 +184,7 @@ async def init_db():
             path="",
             parent=menu,
             component="",
-            permission="sys:menu:query",
+            permission="menu:query",
             type=MenuType.BUTTON,
             meta=schemas.MenuMeta(
                 title="菜单查询",

@@ -38,6 +38,8 @@ async def check_permission(request: Request, user: User = Depends(jwt_auth)):
     """检查用户是否有权限访问"""
     if user.is_superuser:
         return user
+    if not user.is_staff:
+        raise HTTPException(401, "账号无法登录后台")
     role = await user.active_role.first() if user.active_role else None
     if role is None:
         raise HTTPException(401, "用户未激活角色")

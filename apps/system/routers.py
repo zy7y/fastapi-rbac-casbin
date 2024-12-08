@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from starlette.requests import Request
 from tortoise.transactions import atomic
 from fastapi import APIRouter, Query, Depends
@@ -26,6 +28,8 @@ async def login(payload: schema.Login):
     if obj := await model.User.get_or_none(username=payload.username):
         if security.verify_password(payload.password, obj.password):
             token = security.generate_token(obj.username)
+            obj.last_login = datetime.now()
+            await obj.save()
             return schema.Result.ok(schema.Token(token=token))
     return schema.Result.error("用户名或密码错误")
 
@@ -43,7 +47,6 @@ def list2tree(arr: list, parent_name: str = "parent_id", children_name: str = "c
 
     tree = []
     for item in arr:
-        print(item)
         if item.get(parent_name) is None:
             # 根节点
             tree.append(item)
@@ -77,6 +80,16 @@ async def info(obj: model.User = Depends(deps.jwt_auth)):
 user = APIRouter(
     prefix="/User", tags=["User"], dependencies=[Depends(deps.check_permission)]
 )
+
+
+@user.patch("/reset_passwd/{id}", summary="重置密码, 123456")
+async def reset_passwd(id: int) -> schema.Result[schema.User]:
+    obj = await model.User.get_or_none(id=id)
+    if obj:
+        obj.password = security.get_password_hash("123456")
+        await obj.save()
+        return schema.Result.ok()
+    return schema.Result.error("更新失败")
 
 
 @user.post("/assign/role", summary="分配角色", tags=["权限相关"])
@@ -220,6 +233,7 @@ async def query_role_all_by_limit(
 
 @role.post("", summary="新增数据")
 async def create_role(instance: schema.Role) -> schema.Result[schema.Role]:
+    print(instance, "GGG")
     obj = await model.Role.create(**instance.model_dump(exclude_unset=True))
     return schema.Result.ok(obj)
 
