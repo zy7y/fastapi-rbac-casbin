@@ -88,6 +88,8 @@ class User(BaseModel):
 class Info(User):
     roles: list["Role"] | None = Field(None)
     active_role: Optional["Role"] = Field(None)
+    menus: list["MenuTree"] | None = Field(None, description="菜单权限列表")
+    permissions: list[str] | None = Field(None, description="按钮权限列表")
 
 
 class UserQueryParams(User):
@@ -151,11 +153,10 @@ class MenuFieldEnum(StrEnum):
 class Menu(BaseModel):
     id: Optional[int] = Field(None)
     name: Optional[str] = Field(None)
-    parent: Optional[None] = Field(None)
+    parent_id: Optional[int] = Field(None)
     path: Optional[str] = Field(None)
-    icon: Optional[str] = Field(None)
     component: Optional[str] = Field(None)
-    meta: Optional[dict] = Field(None)
+    meta: Optional["MenuMeta"] = Field(None)
     redirect: Optional[str] = Field(None)
     permission: Optional[str] = Field(None)
     type: Optional[int] = Field(None)
@@ -172,6 +173,17 @@ class MenuQueryParams(Menu):
     order_by: Optional[list[MenuFieldEnum]] = Field(
         None, description="排序字段查询时使用"
     )
+
+
+class MenuMeta(RequestSchema):
+    title: str | None = Field(None, description="菜单标题")
+    icon: str | None = Field(None, description="菜单图标")
+    show: bool | None = Field(True, description="是否显示")
+    link: str | None = Field(None, description="外链地址")
+
+
+class MenuTree(Menu):
+    children: list["MenuTree"] | None = Field(None)
 
 
 __all__ = ["PageResult", "Result"]

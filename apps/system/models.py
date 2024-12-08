@@ -1,5 +1,5 @@
 from enum import IntEnum
-
+from .schemas import MenuMeta
 from core.models import AbstractBaseModel, AbstractUser, fields
 
 
@@ -24,7 +24,6 @@ class MenuType(IntEnum):
     DIRECTORY = 1
     MENU = 2
     BUTTON = 3
-    EXTERNAL_LINK = 4
 
 
 class Menu(AbstractBaseModel):
@@ -35,9 +34,9 @@ class Menu(AbstractBaseModel):
     )
     path = fields.CharField(max_length=128, null=True, description="路由地址")
     component = fields.CharField(max_length=128, null=True, description="组件")
-    meta = fields.JSONField(null=True, description="菜单元数据")
-    children = fields.ReverseRelation["Menu"]
+    meta: MenuMeta = fields.JSONField(null=True, description="菜单元数据")
     redirect = fields.CharField(max_length=128, null=True, description="重定向地址")
+    children = fields.ReverseRelation["Menu"]
     permission = fields.CharField(max_length=128, null=True, description="权限标识")
     type = fields.IntEnumField(
         MenuType, default=MenuType.DIRECTORY, description="菜单类型"

@@ -1,7 +1,9 @@
 import contextlib
+
+from starlette.middleware import Middleware
 from tortoise.contrib.fastapi import RegisterTortoise
 
-from apps import rbac
+from apps import system
 from core.settings import DB_URL
 
 import importlib
@@ -81,20 +83,25 @@ def find_models(root_dir: str = "."):
 async def lifespan(app: FastAPI):
     register_routers(app)
     async with RegisterTortoise(
-        app,
-        db_url=DB_URL,
-        modules={"models": ["casbin_tortoise_adapter", *find_models()]},
-        generate_schemas=True,
-        add_exception_handlers=True,
+            app,
+            db_url=DB_URL,
+            modules={"models": ["casbin_tortoise_adapter", *find_models()]},
+            generate_schemas=True,
+            add_exception_handlers=True,
     ):
-        e = await rbac.init_casbin()
+        e = await system.init_casbin()
         app.state.enforcer = e
-        # 跨域
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
+        from apps.system.utils import init_db
+        await init_db()
         yield
+
+
+middleware = [
+    Middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    ),
+]

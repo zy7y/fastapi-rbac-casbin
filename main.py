@@ -1,7 +1,7 @@
 from fastapi import FastAPI
-from utils.register import lifespan
+from core.register import lifespan, middleware
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, middleware=middleware)
 
 if __name__ == "__main__":
     import uvicorn

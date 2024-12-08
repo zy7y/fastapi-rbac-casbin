@@ -2,10 +2,9 @@ from starlette.requests import Request
 from tortoise.transactions import atomic
 from fastapi import APIRouter, Query, Depends
 from core import security
-import apps.rbac.deps as deps
-import apps.rbac.models as model
-import apps.rbac.schemas as schema
-
+import apps.system.deps as deps
+import apps.system.models as model
+import apps.system.schemas as schema
 
 auth = APIRouter(prefix="", tags=["Auth"])
 
@@ -31,9 +30,47 @@ async def login(payload: schema.Login):
     return schema.Result.error("用户名或密码错误")
 
 
-@auth.get("/info", response_model=schema.Result[schema.Info])
+def list2tree(arr: list, parent_name: str = "parent_id", children_name: str = "children"):
+    """
+    列表转嵌套树
+    :param arr: 传入的list
+    :param parent_name: 关系的key名
+    :param children_name: 嵌套数据使用的key名
+    :return:
+    """
+    # 1. 将列表转换成字典，列表中元素的唯一标识作为key，列表元素作为value
+    menu_map = {item["id"]: item for item in arr}
+
+    tree = []
+    for item in arr:
+        print(item)
+        if item.get(parent_name) is None:
+            # 根节点
+            tree.append(item)
+        else:
+            menu_item = menu_map.get(item[parent_name])
+            # 子节点
+            if menu_item.get(children_name) is None:
+                menu_item[children_name] = []
+            menu_item[children_name].append(item)
+    return tree
+
+
+@auth.get("/me", response_model=schema.Result[schema.Info])
 async def info(obj: model.User = Depends(deps.jwt_auth)):
     obj = await model.User.get(id=obj.id).prefetch_related("roles", "active_role")
+    if not obj.is_superuser:
+        if role := await obj.active_role.first():
+            result = await role.prefetch_related("menus").values()
+    else:
+        result = await model.Menu.filter().all().values()
+    # 过滤出 按钮权限
+    permissions = [item["permission"] for item in result if item["type"] == 3]
+    menus = [item for item in result if item["type"] != 3]
+    # menus 转 tree
+    setattr(obj, "menus", list2tree(menus))
+    setattr(obj, "permissions", permissions)
+
     return schema.Result.ok(obj)
 
 
@@ -69,7 +106,7 @@ async def query_user_by_id(id: int) -> schema.Result[schema.User]:
 
 @user.get("", summary="分页条件查询")
 async def query_user_all_by_limit(
-    query: schema.UserQueryParams = Query(),
+        query: schema.UserQueryParams = Query(),
 ) -> schema.PageResult[schema.User]:
     kwargs = query.model_dump(exclude_none=True)
     if kwargs.get("order_by"):
@@ -108,7 +145,7 @@ async def create_user(instance: schema.User) -> schema.Result[schema.User]:
 
 @user.patch("/{id}", summary="更新数据")
 async def update_user_by_id(
-    id: int, instance: schema.User
+        id: int, instance: schema.User
 ) -> schema.Result[schema.User]:
     obj = await model.User.get_or_none(id=id)
     if obj:
@@ -158,7 +195,7 @@ async def query_role_by_id(id: int) -> schema.Result[schema.Role]:
 
 @role.get("", summary="分页条件查询")
 async def query_role_all_by_limit(
-    query: schema.RoleQueryParams = Query(),
+        query: schema.RoleQueryParams = Query(),
 ) -> schema.PageResult[schema.Role]:
     kwargs = query.model_dump(exclude_none=True)
     if kwargs.get("order_by"):
@@ -189,7 +226,7 @@ async def create_role(instance: schema.Role) -> schema.Result[schema.Role]:
 
 @role.patch("/{id}", summary="更新数据")
 async def update_role_by_id(
-    id: int, instance: schema.Role
+        id: int, instance: schema.Role
 ) -> schema.Result[schema.Role]:
     obj = await model.Role.get_or_none(id=id)
     if obj:
@@ -218,43 +255,32 @@ async def query_menu_by_id(id: int) -> schema.Result[schema.Menu]:
     return schema.Result.ok(obj)
 
 
-@menu.get("", summary="分页条件查询")
-async def query_menu_all_by_limit(
-    query: schema.MenuQueryParams = Query(),
-) -> schema.PageResult[schema.Menu]:
-    kwargs = query.model_dump(exclude_none=True)
-    if kwargs.get("order_by"):
-        order_by = kwargs.pop("order_by")
-    else:
-        order_by = []
-    page_number = kwargs.pop("page_number")
-    page_size = kwargs.pop("page_size")
-
-    total = await model.Menu.filter(**kwargs).count()
-    offset = (page_number - 1) * page_size
-
+@menu.get("", summary="分页条件查询 -> 返回树结构")
+async def query_menu_all_by_limit() -> schema.PageResult[schema.MenuTree]:
+    total = await model.Menu.all().count()
     data = (
-        await model.Menu.filter(**kwargs)
-        .offset(offset)
-        .limit(page_size)
-        .all()
-        .order_by(*order_by)
+        await model.Menu.all().order_by("-created_at").values()
     )
-    return schema.PageResult.ok(data=data, total=total)
+    return schema.PageResult.ok(list2tree(data)
+                                , total=total)
 
 
 @menu.post("", summary="新增数据")
 async def create_menu(instance: schema.Menu) -> schema.Result[schema.Menu]:
+    if instance.parent_id == 0:
+        instance.parent_id = None
     obj = await model.Menu.create(**instance.model_dump(exclude_unset=True))
     return schema.Result.ok(obj)
 
 
 @menu.patch("/{id}", summary="更新数据")
 async def update_menu_by_id(
-    id: int, instance: schema.Menu
+        id: int, instance: schema.Menu
 ) -> schema.Result[schema.Menu]:
     obj = await model.Menu.get_or_none(id=id)
     if obj:
+        if instance.parent_id == 0:
+            instance.parent_id = None
         for field, value in instance.model_dump(exclude_unset=True).items():
             setattr(obj, field, value)
         await obj.save()
