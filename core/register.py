@@ -1,18 +1,17 @@
 import contextlib
-
-from starlette.middleware import Middleware
-from tortoise.contrib.fastapi import RegisterTortoise
-
-from apps import system
-from core.settings import DB_URL
-
 import importlib
 import inspect
 from pathlib import Path
+
 from fastapi import FastAPI
-from starlette.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
+from tortoise.contrib.fastapi import RegisterTortoise
 from tortoise.models import Model
+
+from apps import system
+from core.settings import DB_URL
 
 
 def find_python_files(directory: Path):
@@ -83,15 +82,16 @@ def find_models(root_dir: str = "."):
 async def lifespan(app: FastAPI):
     register_routers(app)
     async with RegisterTortoise(
-            app,
-            db_url=DB_URL,
-            modules={"models": ["casbin_tortoise_adapter", *find_models()]},
-            generate_schemas=True,
-            add_exception_handlers=True,
+        app,
+        db_url=DB_URL,
+        modules={"models": ["casbin_tortoise_adapter", *find_models()]},
+        generate_schemas=True,
+        add_exception_handlers=True,
     ):
         e = await system.init_casbin()
         app.state.enforcer = e
         from apps.system.utils import init_db
+
         await init_db()
         yield
 

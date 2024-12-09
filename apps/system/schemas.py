@@ -2,17 +2,29 @@ import re
 from enum import StrEnum
 from typing import Optional
 
-from pydantic import field_validator
+from fastapi import UploadFile
+from pydantic import HttpUrl, field_validator
+
 from core.schemas import (
+    BaseModel,
+    Field,
+    PageResult,
     RequestSchema,
     ResponseSchema,
-    Field,
-    BaseModel,
-    to_camel,
-    datetime,
-    PageResult,
     Result,
+    datetime,
+    to_camel,
 )
+
+
+class UploadFilePayload(RequestSchema):
+    key: str | None = Field(None)
+    file: UploadFile
+
+
+class UploadFileResult(ResponseSchema):
+    url: HttpUrl
+    key: str | None = None
 
 
 class Login(RequestSchema):

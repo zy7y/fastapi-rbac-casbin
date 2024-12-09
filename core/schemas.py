@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Generic, TypeVar
-from typing_extensions import override
 
 from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
+from typing_extensions import override
 
 T = TypeVar("T")
 

@@ -6,7 +6,7 @@ import casbin_tortoise_adapter
 from casbin import AsyncEnforcer
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import jwt, JWTError
+from jose import JWTError, jwt
 from starlette.requests import Request
 
 from apps.system.models import User

@@ -1,15 +1,17 @@
 from apps.system import schemas
-from apps.system.models import User, MenuType, Menu
+from apps.system.models import Menu, MenuType, User
 from core.security import get_password_hash
 
 
 async def init_db():
     if not await User.get_or_none(username="admin"):
         # 1. 创建用户
-        await User.create(username="admin",
-                          password=get_password_hash("123456"),
-                          is_superuser=True,
-                          is_staff=True)
+        await User.create(
+            username="admin",
+            password=get_password_hash("123456"),
+            is_superuser=True,
+            is_staff=True,
+        )
 
         # 2. 创建菜单
         root = await Menu.create(
@@ -190,4 +192,3 @@ async def init_db():
                 title="菜单查询",
             ).model_dump(),
         )
-

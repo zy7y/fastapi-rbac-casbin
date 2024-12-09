@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+
 from core.register import lifespan, middleware
 
 app = FastAPI(lifespan=lifespan, middleware=middleware)

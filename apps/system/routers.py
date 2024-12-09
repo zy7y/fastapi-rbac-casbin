@@ -1,12 +1,18 @@
+import os.path
+import time
 from datetime import datetime
+from typing import Annotated
 
+
+from fastapi import APIRouter, Depends, Form, Query
 from starlette.requests import Request
 from tortoise.transactions import atomic
-from fastapi import APIRouter, Query, Depends
-from core import security
+
 import apps.system.deps as deps
 import apps.system.models as model
 import apps.system.schemas as schema
+from core import security
+from core.settings import DISK_PATH
 
 auth = APIRouter(prefix="", tags=["Auth"])
 
@@ -23,6 +29,27 @@ def get_routes(request: Request):
     return schema.PageResult.ok(data, total=len(data))
 
 
+
+
+@auth.post(
+    "/upload", summary="上传文件", response_model=schema.UploadFileResult
+)
+async def upload(
+    request: Request,
+    payload: Annotated[
+        schema.UploadFilePayload, Form(media_type="multipart/form-data")
+    ],
+):
+    if not payload.key:
+        payload.key = f"{int(time.time())}.{payload.file.filename.split('.')[1]}"
+    os.makedirs(os.path.join(DISK_PATH, *payload.key.split("/")[:-1]), exist_ok=True)
+    with open(os.path.join(DISK_PATH, payload.key), "wb") as buffer:
+        content = await payload.file.read()
+        buffer.write(content)
+    url = f"{request.base_url}/{DISK_PATH}/{payload.key}"
+    return dict(url=url, key=payload.key)
+
+
 @auth.post("/login", response_model=schema.Result[schema.Token])
 async def login(payload: schema.Login):
     if obj := await model.User.get_or_none(username=payload.username):
@@ -34,7 +61,9 @@ async def login(payload: schema.Login):
     return schema.Result.error("用户名或密码错误")
 
 
-def list2tree(arr: list, parent_name: str = "parent_id", children_name: str = "children"):
+def list2tree(
+    arr: list, parent_name: str = "parent_id", children_name: str = "children"
+):
     """
     列表转嵌套树
     :param arr: 传入的list
@@ -119,7 +148,7 @@ async def query_user_by_id(id: int) -> schema.Result[schema.User]:
 
 @user.get("", summary="分页条件查询")
 async def query_user_all_by_limit(
-        query: schema.UserQueryParams = Query(),
+    query: schema.UserQueryParams = Query(),
 ) -> schema.PageResult[schema.User]:
     kwargs = query.model_dump(exclude_none=True)
     if kwargs.get("order_by"):
@@ -158,7 +187,7 @@ async def create_user(instance: schema.User) -> schema.Result[schema.User]:
 
 @user.patch("/{id}", summary="更新数据")
 async def update_user_by_id(
-        id: int, instance: schema.User
+    id: int, instance: schema.User
 ) -> schema.Result[schema.User]:
     obj = await model.User.get_or_none(id=id)
     if obj:
@@ -208,7 +237,7 @@ async def query_role_by_id(id: int) -> schema.Result[schema.Role]:
 
 @role.get("", summary="分页条件查询")
 async def query_role_all_by_limit(
-        query: schema.RoleQueryParams = Query(),
+    query: schema.RoleQueryParams = Query(),
 ) -> schema.PageResult[schema.Role]:
     kwargs = query.model_dump(exclude_none=True)
     if kwargs.get("order_by"):
@@ -240,7 +269,7 @@ async def create_role(instance: schema.Role) -> schema.Result[schema.Role]:
 
 @role.patch("/{id}", summary="更新数据")
 async def update_role_by_id(
-        id: int, instance: schema.Role
+    id: int, instance: schema.Role
 ) -> schema.Result[schema.Role]:
     obj = await model.Role.get_or_none(id=id)
     if obj:
@@ -272,11 +301,8 @@ async def query_menu_by_id(id: int) -> schema.Result[schema.Menu]:
 @menu.get("", summary="分页条件查询 -> 返回树结构")
 async def query_menu_all_by_limit() -> schema.PageResult[schema.MenuTree]:
     total = await model.Menu.all().count()
-    data = (
-        await model.Menu.all().order_by("-created_at").values()
-    )
-    return schema.PageResult.ok(list2tree(data)
-                                , total=total)
+    data = await model.Menu.all().order_by("-created_at").values()
+    return schema.PageResult.ok(list2tree(data), total=total)
 
 
 @menu.post("", summary="新增数据")
@@ -289,7 +315,7 @@ async def create_menu(instance: schema.Menu) -> schema.Result[schema.Menu]:
 
 @menu.patch("/{id}", summary="更新数据")
 async def update_menu_by_id(
-        id: int, instance: schema.Menu
+    id: int, instance: schema.Menu
 ) -> schema.Result[schema.Menu]:
     obj = await model.Menu.get_or_none(id=id)
     if obj:

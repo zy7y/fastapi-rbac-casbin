@@ -1,6 +1,8 @@
 from enum import IntEnum
-from .schemas import MenuMeta
+
 from core.models import AbstractBaseModel, AbstractUser, fields
+
+from .schemas import MenuMeta
 
 
 class User(AbstractUser):
